@@ -17,7 +17,8 @@ class Forest
         static Forest* get_instance();
         static Forest* get_instance(int na, int np, int _X, int _Y);
         static void clear_instance();
-
+        int grow();
+        int less();
         void listen();
         void draw();
         void live();
