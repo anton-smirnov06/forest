@@ -1,5 +1,3 @@
-// The heart of the forest - its deep thoughts and distant rambling and horrors unseen from the outside.
-
 #include "Forest.h"
 #include "Cow.h"
 #include "Cat.h"
@@ -14,6 +12,7 @@
 #include <iostream>
 #include <stdlib.h>
 #include <time.h>
+#include <algorithm>
 
 int plans_X = 0;
 int plans_Y = 0;
@@ -29,7 +28,7 @@ Forest* Forest::get_instance()
 {
     if (!instance)
     {
-        cout <<"Warning - an empty Forest was created. Don't expect much." <<endl;
+        cout <<"Warning - an empty Forest was created. Don't expect much." << endl;
         instance = new Forest;
     }
     return instance;
@@ -70,9 +69,9 @@ Forest::Forest()
 
 Forest::~Forest()
 {
-    for (int i=0; i<n_animals; i++)
+    for (int i = 0; i < n_animals; i++)
         delete animals[i];
-    for (int i=0; i<n_plants; i++)
+    for (int i = 0; i < n_plants; i++)
         delete plants[i];
     delete[] animals;
     delete[] plants;
@@ -83,7 +82,7 @@ Forest::~Forest()
 void Forest::listen()
 {
     if (!animals) return;
-    for (int i=0; i<n_animals; i++)
+    for (int i = 0; i < n_animals; i++)
         animals[i]->talk();
 }
 
@@ -144,6 +143,7 @@ int Forest::init(int na, int np, int _X, int _Y)
         }
         }
     }
+    
     int old_n = n_plants;
     if (plants != nullptr) {
       for (int i = 0; i < old_n; i++) {
@@ -153,7 +153,6 @@ int Forest::init(int na, int np, int _X, int _Y)
       plants = nullptr;
     }
     
-    
     n_plants = np;
     plants = new Plant*[n_plants];
     if (!plants) return 4;
@@ -162,34 +161,20 @@ int Forest::init(int na, int np, int _X, int _Y)
         int r = rand()%3;           // The amount of plants is also given from beyond, and each plant can also decide
         switch (r) {
         case 0:
-
-
             if (!(plants[i] = new Sundew(1)))
                 return 5;
             break;
-
-
         case 1:
-
-
             if (!(plants[i] = new Flower(1)))
                 return 6;
             break;
-
-
         case 2:
-
-            if (!(plants[i] = new Mushroom(1))) {
-
+            if (!(plants[i] = new Mushroom(1)))
                 return 9;
-            }
             break;
-
         }
     }
     
-    
-
     int ia = 0, ip = 0, _x, _y;
     X = _X, Y = _Y;
 
@@ -197,7 +182,7 @@ int Forest::init(int na, int np, int _X, int _Y)
     bool **taken;
     taken = new bool*[X];
     if (!taken) return 7;
-    for (int i=0; i<X; i++)
+    for (int i = 0; i < X; i++)
         if (!(taken[i] = new bool[Y]))
             return 8;
 
@@ -230,7 +215,7 @@ int Forest::init(int na, int np, int _X, int _Y)
         ia++;
     }
 
-    for (int i=0; i<X; i++)
+    for (int i = 0; i < X; i++)
         delete[] taken[i];
     delete[] taken;
 
@@ -244,174 +229,229 @@ int Forest::init(int na, int np, int _X, int _Y)
 
 int Forest::grow()
 {
+    if (plants == nullptr) return 1;
+    
     int old_n = n_plants;
-    if (plants != nullptr) {
-      for (int i = 0; i < old_n; i++) {
-        delete plants [i];
-      }
-      delete[] plants;
-      plants = nullptr;
-    }
+    
+    // Save old plants
+    Plant** old_plants = plants;
+    
+    // Increase plant count
     n_plants++;
     plants = new Plant*[n_plants];
-    
-    for (int i=0; i < n_plants; i++) {
-      
-    int r = rand()%3;           // The amount of plants is also given from beyond, and each plant can also decide
-    switch (r) {
-    case 0:
-
-
-        if (!(plants[old_n] = new Sundew(1)))
-            return 5;
-        break;
-
-
-    case 1:
-
-
-        if (!(plants[old_n] = new Flower(1)))
-            return 6;
-        break;
-
-
-    case 2:
-
-        if (!(plants[old_n] = new Mushroom(1))) {
-
-            return 9;
-        }
-        break;
-      }
+    if (!plants) {
+        plants = old_plants;
+        n_plants = old_n;
+        return 4;
     }
-  int ia = 0, ip = 0, _x, _y;
-
-
+    
+    // Copy old plants to new array
+    for (int i = 0; i < old_n; i++) {
+        plants[i] = old_plants[i];
+    }
+    
+    // Create new plant
+    int r = rand() % 3;
+    switch (r) {
+        case 0:
+            if (!(plants[old_n] = new Sundew(1))) {
+                // Rollback on failure
+                for (int i = 0; i < old_n; i++) {
+                    plants[i] = nullptr;
+                }
+                delete[] plants;
+                plants = old_plants;
+                n_plants = old_n;
+                return 5;
+            }
+            break;
+        case 1:
+            if (!(plants[old_n] = new Flower(1))) {
+                // Rollback on failure
+                for (int i = 0; i < old_n; i++) {
+                    plants[i] = nullptr;
+                }
+                delete[] plants;
+                plants = old_plants;
+                n_plants = old_n;
+                return 6;
+            }
+            break;
+        case 2:
+            if (!(plants[old_n] = new Mushroom(1))) {
+                // Rollback on failure
+                for (int i = 0; i < old_n; i++) {
+                    plants[i] = nullptr;
+                }
+                delete[] plants;
+                plants = old_plants;
+                n_plants = old_n;
+                return 9;
+            }
+            break;
+    }
+    
+    // Delete old array (but not the plants themselves)
+    delete[] old_plants;
+    
+    // Update positions for all plants
     X = plans_X, Y = plans_Y;
-
+    
     // We try to set them apart from each other.
     bool **taken;
     taken = new bool*[X];
     if (!taken) return 7;
-    for (int i=0; i<X; i++)
-        if (!(taken[i] = new bool[Y]))
+    for (int i = 0; i < X; i++) {
+        if (!(taken[i] = new bool[Y])) {
+            for (int j = 0; j < i; j++) delete[] taken[j];
+            delete[] taken;
             return 8;
-
-    for (int i=0; i<X; i++)
-        for (int j=0; j<Y; j++)
+        }
+        for (int j = 0; j < Y; j++)
             taken[i][j] = false;
-
-    while (ip < n_plants)
-    {
-        // Looking through all the animals and plants, one at a time, and finding each one a cozy spot.
-        // It might take time if the forest is small and crowded.
-        _x = rand()%X;
-        _y = rand()%Y;
-        if (taken[_x][_y]) continue;
+    }
+    
+    // Also mark animal positions as taken
+    for (int i = 0; i < n_animals; i++) {
+        if (animals[i]) {
+            int ax = animals[i]->get_x();
+            int ay = animals[i]->get_y();
+            if (ax >= 0 && ax < X && ay >= 0 && ay < Y) {
+                taken[ax][ay] = true;
+            }
+        }
+    }
+    
+    // Place all plants in empty spots
+    for (int
+ip = 0; ip < n_plants; ip++) {
+        int _x, _y;
+        int attempts = 0;
+        do {
+            _x = rand() % X;
+            _y = rand() % Y;
+            attempts++;
+            if (attempts > 1000) {
+                // If can't find empty spot, just place anywhere
+                _x = ip % X;
+                _y = (ip / X) % Y;
+                break;
+            }
+        } while (taken[_x][_y]);
+        
         plants[ip]->set_x(_x);
         plants[ip]->set_y(_y);
         plants[ip]->setSprite();
         taken[_x][_y] = true;
-        ip++;
     }
-    for (int i=0; i<X; i++)
+    
+    // Cleanup
+    for (int i = 0; i < X; i++)
         delete[] taken[i];
-    delete taken;
-
-   /* sf::ContextSettings contextSettings;
-    contextSettings.depthBits = 24;
-    window = new sf::RenderWindow(sf::VideoMode(SX, SY), "Forest", sf::Style::Default, contextSettings);
-    window->setActive();
-*/
+    delete[] taken;
+    
     return 0;
 }
 
 int Forest::less()
 {
-
+    if (plants == nullptr || n_plants <= 0) return 1;
+    
     int old_n = n_plants;
-    if (plants != nullptr) {
-        for (int i = 0; i < old_n; i++) {
-            delete plants[i]; 
-        }
-        delete[] plants;
-        plants = nullptr;
-    }
-
+    
+    // Save old plants
+    Plant** old_plants = plants;
+    
+    // Decrease plant count
     n_plants--;
-    n_plants = std::max(n_plants, 0);
-
-    plants = new Plant*[n_plants];
-    if (!plants) return 4;
-    for (int i=0; i<n_plants; i++)
-    {
-        int r = rand()%3;           // The amount of plants is also given from beyond, and each plant can also decide
-        switch (r) {
-        case 0:
-
-            if (!(plants[i] = new Sundew(1)))
-                return 5;
-            break;
-
-        case 1:
-
-            if (!(plants[i] = new Flower(1)))
-                return 6;
-            break;
-
-        case 2:
-
-            if (!(plants[i] = new Mushroom(1))) {
-
-                return 9;
-            }
-            break;
-
+    if (n_plants < 0) n_plants = 0;
+    
+    if (n_plants == 0) {
+        // Delete all plants
+        for (int i = 0; i < old_n; i++) {
+            delete old_plants[i];
         }
+        delete[] old_plants;
+        plants = nullptr;
+        return 0;
     }
-int ia = 0, ip = 0, _x, _y;
-
-
+    
+    // Create new array
+    plants = new Plant*[n_plants];
+    if (!plants) {
+        plants = old_plants;
+        n_plants = old_n;
+        return 4;
+    }
+    
+    // Copy all plants except the last one
+    for (int i = 0; i < n_plants; i++) {
+        plants[i] = old_plants[i];
+    }
+    
+    // Delete the last plant
+    delete old_plants[old_n - 1];
+    
+    // Delete old array
+    delete[] old_plants;
+    
+    // Update positions for all remaining plants
     X = plans_X, Y = plans_Y;
-
+    
     // We try to set them apart from each other.
     bool **taken;
     taken = new bool*[X];
     if (!taken) return 7;
-    for (int i=0; i<X; i++)
-        if (!(taken[i] = new bool[Y]))
+    for (int i = 0; i < X; i++) {
+        if (!(taken[i] = new bool[Y])) {
+            for (int j = 0; j < i; j++) delete[] taken[j];
+            delete[] taken;
             return 8;
-
-    for (int i=0; i<X; i++)
-        for (int j=0; j<Y; j++)
+        }
+        for (int j = 0; j < Y; j++)
             taken[i][j] = false;
-
-    while (ip < n_plants)
-    {
-        // Looking through all the animals and plants, one at a time, and finding each one a cozy spot.
-        // It might take time if the forest is small and crowded.
-        _x = rand()%X;
-        _y = rand()%Y;
-        if (taken[_x][_y]) continue;
+    }
+    
+    // Mark animal positions as taken
+    for (int i = 0; i < n_animals; i++) {
+        if (animals[i]) {
+            int ax = animals[i]->get_x();
+            int ay = animals[i]->get_y();
+            if (ax >= 0 && ax < X && ay >= 0 && ay < Y) {
+                taken[ax][ay] = true;
+            }
+        }
+    }
+    
+    // Place all plants in empty spots
+    for (int ip = 0; ip < n_plants; ip++) {
+        int _x, _y;
+        int attempts = 0;
+        do {
+            _x = rand() % X;
+            _y = rand() % Y;
+            attempts++;
+            if (attempts > 1000) {
+                // If can't find empty spot, just place anywhere
+                _x = ip % X;
+                _y = (ip / X) % Y;
+                break;
+            }
+        } while (taken[_x][_y]);
+        
         plants[ip]->set_x(_x);
         plants[ip]->set_y(_y);
         plants[ip]->setSprite();
         taken[_x][_y] = true;
-        ip++;
     }
-    for (int i=0; i<X; i++)
+    
+    // Cleanup
+    for (int i = 0; i < X; i++)
         delete[] taken[i];
-    delete taken;
-
-   /* sf::ContextSettings contextSettings;
-    contextSettings.depthBits = 24;
-    window = new sf::RenderWindow(sf::VideoMode(SX, SY), "Forest", sf::Style::Default, contextSettings);
-    window->setActive();
-*/
+    delete[] taken;
+    
     return 0;
 }
-
-
 
 void Forest::live()
 {
@@ -424,7 +464,6 @@ void Forest::live()
         {
             if (event.type == sf::Event::Closed)
                 window->close();
-
         }
 
         // The forest allows you to guide it to the future, one step at a time.
@@ -434,35 +473,33 @@ void Forest::live()
             {
                 move();
                 key_pressed = true;
-
             }
         }
-        else
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
         {
             if (!key_pressed)
             {
-                grow();
-            key_pressed = true;
-            }
-        }
-        else
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
-        {
-            if (!key_pressed)
-            {
-                less();
+                int result = grow();
+                if (result != 0) {
+                    cout << "Grow failed with error code: " << result << endl;
+}
                 key_pressed = true;
             }
         }
-
-        else key_pressed = false;
-
-
-
-        //else key_pressed = false;
-
-
+        else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+        {
+            if (!key_pressed)
+            {
+                int result = less();
+                if (result != 0) {
+                    cout << "Less failed with error code: " << result << endl;
+                }
+                key_pressed = true;
+            }
+        }
+        else {
+            key_pressed = false;
+        }
 
         window->clear(sf::Color(0,50,0));  // Evergreen forest is behind all the things here.
         draw();
@@ -474,11 +511,12 @@ void Forest::draw()
 {
     if (!window || !animals || !plants) return;
 
-        // Plants and animals are really trusting to let everyone meddle with their faces.
-        // But this is most convenient for the forest.
+    // Plants and animals are really trusting to let everyone meddle with their faces.
+    // But this is most convenient for the forest.
 
     for (int i = 0; i < n_plants; i++)
     {
+        if (!plants[i]) continue;
         sf::Sprite *s = plants[i]->getSprite();
         if (!s) continue;
         s->setPosition(sf::Vector2f(plants[i]->get_x() * SX / (float)X, plants[i]->get_y() * SY / (float)Y));
@@ -487,6 +525,7 @@ void Forest::draw()
     }
     for (int i = 0; i < n_animals; i++)
     {
+        if (!animals[i]) continue;
         sf::Sprite *s = animals[i]->getSprite();
         if (!s) continue;
         s->setPosition(sf::Vector2f(animals[i]->get_x() * SX/(float)X, animals[i]->get_y() * SY / (float)Y));
@@ -502,25 +541,24 @@ bool Forest::check(int x, int y)
 {
     if (x >= 0 && x < X && y >= 0 && y < Y)
     {
-
         for (int i = 0; i < n_animals; i++) {
-        if (animals[i]->get_x() == x && animals[i]->get_y() == y)
-            return false;
+            if (animals[i] && animals[i]->get_x() == x && animals[i]->get_y() == y)
+                return false;
         }
 
         for (int i = 0; i < n_plants; i++) {
-        if(plants[i]->get_x() == x && plants[i]->get_y() == y)
-            return false;
+            if (plants[i] && plants[i]->get_x() == x && plants[i]->get_y() == y)
+                return false;
         }
-        return true;
     }
-    return false;
+    else return false;
+    return true;
 }
 
 bool Forest::checkAnimals(int x, int y)
 {
     for (int i = 0; i < n_animals; i++) {
-        if(animals[i]->get_x() == x && animals[i]->get_y() == y)
+        if (animals[i] && animals[i]->get_x() == x && animals[i]->get_y() == y)
             return false;
     }
     return true;
@@ -529,7 +567,7 @@ bool Forest::checkAnimals(int x, int y)
 bool Forest::checkPlants(int x, int y)
 {
     for (int i = 0; i < n_plants; i++) {
-        if(plants[i]->get_x() == x && plants[i]->get_y() == y)
+        if (plants[i] && plants[i]->get_x() == x && plants[i]->get_y() == y)
             return false;
     }
     return true;
@@ -540,10 +578,10 @@ void Forest::move()
 {
     if (!animals) return;
     for (int i = 0; i < n_animals; i++)
-        animals[i]->walk(this);
+        if (animals[i])
+            animals[i]->walk(this);
     if (!plants) return;
     for (int i = 0; i < n_plants; i++)
-        plants[i]->grow(this);
+        if (plants[i])
+            plants[i]->grow(this);
 }
-
-
