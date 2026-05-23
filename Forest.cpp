@@ -87,6 +87,12 @@ void Forest::listen()
         animals[i]->talk();
 }
 
+static void free_taken(bool** taken, int X) {
+  if (!taken) return;
+  for (int i = 0; i < X; i++) delete[] taken[i];
+  delete taken;
+}
+
 int Forest::init(int na, int np, int _X, int _Y)
 {
     plans_X = _X;
@@ -95,8 +101,7 @@ int Forest::init(int na, int np, int _X, int _Y)
     n_animals = na;
     animals = new Animal*[n_animals];
     if (!animals) return 1;
-    for (int i=0; i<n_animals; i++)
-    {
+    for (int i=0; i<n_animals; i++) {
         int r = rand()%6;           // The amount of animals is given from beyond, but each animal can decide
                                     // what it wants to be.
                                     //To have penguins, we should take %4
@@ -139,6 +144,16 @@ int Forest::init(int na, int np, int _X, int _Y)
         }
         }
     }
+    int old_n = n_plants;
+    if (plants != nullptr) {
+      for (int i = 0; i < old_n; i++) {
+        delete plants [i];
+      }
+      delete[] plants;
+      plants = nullptr;
+    }
+    
+    
     n_plants = np;
     plants = new Plant*[n_plants];
     if (!plants) return 4;
@@ -172,6 +187,8 @@ int Forest::init(int na, int np, int _X, int _Y)
 
         }
     }
+    
+    
 
     int ia = 0, ip = 0, _x, _y;
     X = _X, Y = _Y;
@@ -215,7 +232,7 @@ int Forest::init(int na, int np, int _X, int _Y)
 
     for (int i=0; i<X; i++)
         delete[] taken[i];
-    delete taken;
+    delete[] taken;
 
     sf::ContextSettings contextSettings;
     contextSettings.depthBits = 24;
@@ -227,40 +244,47 @@ int Forest::init(int na, int np, int _X, int _Y)
 
 int Forest::grow()
 {
+    int old_n = n_plants;
+    if (plants != nullptr) {
+      for (int i = 0; i < old_n; i++) {
+        delete plants [i];
+      }
+      delete[] plants;
+      plants = nullptr;
+    }
     n_plants++;
     plants = new Plant*[n_plants];
-    if (!plants) return 4;
-    for (int i=0; i<n_plants; i++)
-    {
-        int r = rand()%3;           // The amount of plants is also given from beyond, and each plant can also decide
-        switch (r) {
-        case 0:
+    
+    for (int i=0; i < n_plants; i++) {
+      
+    int r = rand()%3;           // The amount of plants is also given from beyond, and each plant can also decide
+    switch (r) {
+    case 0:
 
 
-            if (!(plants[i] = new Sundew(1)))
-                return 5;
-            break;
+        if (!(plants[old_n] = new Sundew(1)))
+            return 5;
+        break;
 
 
-        case 1:
+    case 1:
 
 
-            if (!(plants[i] = new Flower(1)))
-                return 6;
-            break;
+        if (!(plants[old_n] = new Flower(1)))
+            return 6;
+        break;
 
 
-        case 2:
+    case 2:
 
-            if (!(plants[i] = new Mushroom(1))) {
+        if (!(plants[old_n] = new Mushroom(1))) {
 
-                return 9;
-            }
-            break;
-
+            return 9;
         }
+        break;
+      }
     }
-int ia = 0, ip = 0, _x, _y;
+  int ia = 0, ip = 0, _x, _y;
 
 
     X = plans_X, Y = plans_Y;
@@ -304,7 +328,19 @@ int ia = 0, ip = 0, _x, _y;
 
 int Forest::less()
 {
+
+    int old_n = n_plants;
+    if (plants != nullptr) {
+        for (int i = 0; i < old_n; i++) {
+            delete plants[i]; 
+        }
+        delete[] plants;
+        plants = nullptr;
+    }
+
     n_plants--;
+    n_plants = std::max(n_plants, 0);
+
     plants = new Plant*[n_plants];
     if (!plants) return 4;
     for (int i=0; i<n_plants; i++)
@@ -313,19 +349,15 @@ int Forest::less()
         switch (r) {
         case 0:
 
-
             if (!(plants[i] = new Sundew(1)))
                 return 5;
             break;
 
-
         case 1:
-
 
             if (!(plants[i] = new Flower(1)))
                 return 6;
             break;
-
 
         case 2:
 
@@ -420,7 +452,7 @@ void Forest::live()
             if (!key_pressed)
             {
                 less();
-            key_pressed = true;
+                key_pressed = true;
             }
         }
 
@@ -473,34 +505,34 @@ bool Forest::check(int x, int y)
 
         for (int i = 0; i < n_animals; i++) {
         if (animals[i]->get_x() == x && animals[i]->get_y() == y)
-            return 0;
+            return false;
         }
 
         for (int i = 0; i < n_plants; i++) {
         if(plants[i]->get_x() == x && plants[i]->get_y() == y)
-            return 0;
+            return false;
         }
+        return true;
     }
-    else return 0;
-    return x >= 0 && x < X && y >= 0 && y < Y;
+    return false;
 }
 
 bool Forest::checkAnimals(int x, int y)
 {
     for (int i = 0; i < n_animals; i++) {
         if(animals[i]->get_x() == x && animals[i]->get_y() == y)
-            return 0;
+            return false;
     }
-    return 1;
+    return true;
 }
 
 bool Forest::checkPlants(int x, int y)
 {
     for (int i = 0; i < n_plants; i++) {
         if(plants[i]->get_x() == x && plants[i]->get_y() == y)
-            return 0;
+            return false;
     }
-    return 1;
+    return true;
 }
 
 // The polite part of the forest, where it gently asks all the animals to make a step.
